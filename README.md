@@ -1,101 +1,272 @@
 # TrizenAI Photo Sharing Platform
 
 ## Project Overview
-This project is a full-stack MVP for a professional-event photo sharing platform. It supports admin-led event creation, team member upload workflows, photo review and selection, and customer-only access to selected published gallery images through a PIN-protected public gallery.
 
-## Features
-### Admin
-- Create events
-- Add team members to events
-- Review upload activity
-- Select/unselect photos
-- Publish a gallery with a PIN
-- Access dashboard and event management pages
+TrizenAI is a full-stack photo-sharing platform for professional events. Event administrators create events, assign team members, review uploaded photos, select the photos to publish, and share a PIN-protected public gallery. Customers can access only the selected photos from a published gallery.
 
-### Team Member
-- View assigned events
-- Upload photos to assigned events
-- View personal uploads only
-- Cannot create events or publish galleries
+### Main Workflows
 
-### Customer
-- Open a public gallery link
-- Enter a PIN to verify access
-- View only selected published photos
+- **Admin:** register, create events, create and assign team members, review uploads, select photos, and publish galleries.
+- **Team member:** log in, view assigned events, upload event photos, and view personal uploads.
+- **Customer:** open a public gallery link, verify the gallery PIN, and view selected photos with event details.
 
-## Tech Stack
-- React
+## Technology Stack
+
+### Frontend
+
+- React 19
+- React Router
 - Vite
+- Axios
+- Oxlint
+
+### Backend
+
 - Node.js
 - Express
-- MongoDB Atlas / Mongoose
-- Cloudinary
-- JWT
-- bcryptjs
-- Vercel
-- Render
+- Mongoose
+- JWT authentication
+- bcryptjs password hashing
+- Multer multipart upload handling
+- Helmet and CORS
 
-## Architecture
-React
-↓
-Express REST API
-↓
-MongoDB
+### Infrastructure
 
-Express
-↓
-Cloudinary
+- MongoDB Atlas for production data persistence
+- MongoDB Memory Server for automated integration tests
+- Cloudinary for production image storage
+- Render for the Express API
+- Vercel for the React frontend
+
+## System Architecture
+
+The browser communicates with the Express API through JSON and multipart HTTP requests. The API authenticates users with JWTs, stores application records in MongoDB, and sends uploaded images to Cloudinary. Public gallery access uses a gallery-specific token issued after successful PIN verification.
+
+```mermaid
+flowchart LR
+      Browser[React frontend on Vercel]
+      API[Express REST API on Render]
+      DB[(MongoDB Atlas)]
+      Images[Cloudinary image storage]
+
+      Browser -->|HTTPS JSON and multipart requests| API
+      API -->|Users events photos galleries| DB
+      API -->|Upload image files| Images
+      Images -->|Secure image URLs| API
+      API -->|Gallery data and image URLs| Browser
+```
+
+   Simple view of the same architecture:
+
+   ```text
+   Customer/Admin/Team Member
+          |
+          v
+   React + Vite frontend (Vercel)
+          |
+          v
+   Express REST API (Render)
+       /       \
+      v         v
+   MongoDB Atlas  Cloudinary
+    users, events,  uploaded images
+    photos, galleries
+   ```
+
+### Authorization Model
+
+- JWTs identify authenticated users.
+- Passwords are stored as bcrypt hashes, never as plain text.
+- Admin-only operations include event creation, member assignment, photo selection, and gallery publishing.
+- Team members can upload only to events assigned to them.
+- Team members can view only their own uploads through event photo endpoints.
+- Public gallery photos require a valid short-lived gallery access token created after PIN verification.
 
 ## Database Design
-- User: authenticated admin/team member records, roles, hashed passwords
-- Event: event metadata and assigned team members
-- Photo: Cloudinary metadata for uploaded images
-- Gallery: public link metadata, generated token, and hashed PIN
 
-## Authentication and Authorization
-The app uses JWTs for authentication and stores only hashed passwords. Role-based checks are enforced on the backend, and event-level access is restricted so team members cannot access arbitrary event IDs.
+MongoDB stores four primary collections:
 
-## Image Storage
-Actual images are uploaded to Cloudinary. MongoDB stores only metadata such as Cloudinary URL, public ID, event relation, original filename, uploader, and selection state.
+### User
 
-## Environment Variables
-Create a .env file in the server folder using the variables from .env.example.
+Stores `name`, normalized `email`, `passwordHash`, and `role`. Roles are `ADMIN` and `TEAM_MEMBER`.
 
-For local development, the server can start without MongoDB or Cloudinary credentials by using its in-memory MongoDB and local fallback image URLs. For production, configure MongoDB Atlas and all Cloudinary variables; the fallback image URLs are intended only for local development.
+### Event
+
+Stores the event `name`, `description`, `date`, the creating admin, and references to assigned team members.
+
+### Photo
+
+Stores the event reference, uploader reference, original filename, file size, Cloudinary `publicId`, image URL, and `isSelected` state.
+
+### Gallery
+
+Stores the event reference, public gallery token, bcrypt-hashed PIN, publication state, and publication timestamp. The PIN itself is never stored.
+
+## Repository Structure
+
+```text
+client/                 React/Vite frontend
+   src/pages/             Login, dashboards, event, and gallery pages
+   src/services/api.js    Axios API client
+server/                 Express backend
+   src/controllers/       Request handlers
+   src/models/            Mongoose schemas
+   src/routes/            API route definitions
+   src/middleware/        Authentication and event access checks
+   test/                  Backend integration tests
+```
 
 ## Local Setup
-1. Clone the repo
-2. Install dependencies for both client and server
-3. Copy server/.env.example to server/.env and fill in values
-4. Run:
-   - client: npm run dev
-   - server: npm run dev
+
+### Prerequisites
+
+- Node.js 18 or newer
+- npm
+- MongoDB Atlas or a local MongoDB instance for persistent local data
+- Cloudinary account for real image storage
+
+### Install Dependencies
+
+From the repository root:
+
+```powershell
+cd server
+npm install
+
+cd ..\client
+npm install
+```
+
+### Configure the Backend
+
+Copy the example file:
+
+```powershell
+Copy-Item server\.env.example server\.env
+```
+
+Set the values in `server/.env`:
+
+```env
+PORT=5000
+MONGO_URI=mongodb_connection_string
+JWT_SECRET=long_random_secret
+CLOUDINARY_CLOUD_NAME=cloudinary_cloud_name
+CLOUDINARY_API_KEY=cloudinary_api_key
+CLOUDINARY_API_SECRET=cloudinary_api_secret
+CLIENT_URL=http://localhost:5173
+```
+
+Never commit `server/.env` or place real credentials in documentation.
+
+### Start the Applications
+
+Use two terminals:
+
+```powershell
+# Terminal 1
+cd server
+npm run dev
+```
+
+```powershell
+# Terminal 2
+cd client
+npm run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173). The backend health endpoint is available at [http://localhost:5000/api/health](http://localhost:5000/api/health).
+
+The client defaults to `http://localhost:5000/api` when `VITE_API_URL` is not set. For local development, `CLIENT_URL` should remain `http://localhost:5173`.
+
+## Environment Variables
+
+### Backend
+
+| Variable | Purpose |
+| --- | --- |
+| `PORT` | Port used by the Express server locally. Render supplies its own port in production. |
+| `MONGO_URI` | MongoDB connection string. |
+| `JWT_SECRET` | Secret used to sign authentication tokens. |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud identifier. |
+| `CLOUDINARY_API_KEY` | Cloudinary API key. |
+| `CLOUDINARY_API_SECRET` | Cloudinary API secret. |
+| `CLIENT_URL` | Allowed frontend origin and base URL for generated gallery links. |
+
+### Frontend
+
+Set this in Vercel for Production and Preview deployments:
+
+```env
+VITE_API_URL=https://your-render-service.onrender.com/api
+```
+
+The `/api` suffix is required for frontend API requests. `CLIENT_URL` must contain only the frontend origin, without `/login`, `/gallery`, or `/api`.
+
+## Testing and Validation
+
+Run backend integration tests:
+
+```powershell
+cd server
+npm test
+```
+
+Run frontend linting and the production build:
+
+```powershell
+cd client
+npm run lint
+npm run build
+```
+
+The integration suite covers authentication, event authorization, duplicate team-member handling, uploads, photo selection, gallery publication, PIN verification, and public gallery access.
 
 ## Deployment
-- Frontend: Vercel
-- Backend: Render
-- Database: MongoDB Atlas
-- Images: Cloudinary
 
-Before submission, deploy both applications and record the live frontend URL, backend URL, demo admin credentials, demo team member credentials, demo gallery URL, and gallery PIN. Do not commit any credentials or `.env` files.
+### Deploy the API to Render
 
-## Testing
-Verify the major flows: admin registration/login, event creation, team assignment, uploads, photo selection, gallery publication, and public gallery PIN verification.
+1. Push the repository to GitHub.
+2. Create a Render **Web Service** from the repository.
+3. Set the root directory to `server`.
+4. Use `npm install` as the build command.
+5. Use `npm start` as the start command.
+6. Add the backend environment variables in the Render dashboard.
+7. Set `CLIENT_URL` to the final Vercel frontend origin.
+8. Confirm the service with `/api/health`.
 
-The frontend can be validated with `npm run build` and `npm run lint` from `client`. The backend exposes `GET /api/health` for a running-server smoke check, and `npm test` runs integration tests for authentication, event authorization, photo upload and selection, gallery publishing, and PIN-protected access.
+### Deploy the Frontend to Vercel
+
+1. Import the GitHub repository into Vercel.
+2. Set the root directory to `client`.
+3. Use the Vite preset with `npm run build` and `dist` as the output directory.
+4. Add `VITE_API_URL` with the deployed Render API URL and `/api` suffix.
+5. Deploy and open the generated Vercel URL.
+6. Update Render's `CLIENT_URL` with that exact Vercel URL and redeploy the API if necessary.
+
+### Production Checklist
+
+- Add the Render service IP access rule required by MongoDB Atlas.
+- Configure Cloudinary credentials for real image uploads.
+- Confirm CORS allows the deployed Vercel origin.
+- Test admin, team-member, upload, selection, publication, PIN, and direct gallery-link flows.
+- Rotate any credentials that were accidentally exposed during development.
+- Keep all `.env` files out of Git.
 
 ## Known Limitations
-- No advanced image editing
-- No real-time upload progress
-- No automatic AI tagging
-- No advanced search or pagination
+
+- No real-time upload progress indicator.
+- No image editing, cropping, or transformations in the application UI.
+- No automatic AI tagging or duplicate detection.
+- No pagination or advanced search for large event galleries.
+- Gallery access tokens are held in server memory, so active tokens are lost when the Render instance restarts.
+- The free Render instance can sleep after inactivity, causing a slow first request.
+- Local fallback image URLs are intended for development and testing, not production storage.
 
 ## Future Improvements
-- AI-based photo tagging
-- Duplicate detection
-- Smart gallery search
-- Thumbnail resizing
-- CDN optimization
-- Gallery expiration
-- Bulk download
-- CI/CD
+
+- Persist gallery access sessions in Redis or MongoDB.
+- Add thumbnail generation and responsive image transformations.
+- Add bulk selection, downloads, and gallery expiration.
+- Add upload progress and retry handling.
+- Add automated deployment and security checks in CI.
