@@ -287,7 +287,14 @@ const getPublicGalleryPhotos = async (req, res) => {
       .populate('uploadedBy', 'name')
       .sort({ createdAt: -1 });
 
-    return sendSuccess(res, { photos });
+    return sendSuccess(res, {
+      event: {
+        name: event.name,
+        description: event.description,
+        date: event.date,
+      },
+      photos,
+    });
   } catch (error) {
     return sendError(res, 'Unable to fetch gallery photos', 500);
   }

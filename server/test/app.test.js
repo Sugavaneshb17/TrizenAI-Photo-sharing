@@ -137,6 +137,8 @@ test('enforces event access and supports the complete gallery workflow', async (
     .get(`/api/public/gallery/${galleryToken}/photos`)
     .set('Authorization', `Bearer ${verifyResponse.body.data.accessToken}`);
   assert.equal(publicPhotosResponse.status, 200);
+  assert.equal(publicPhotosResponse.body.data.event.name, 'Test Event');
+  assert.equal(publicPhotosResponse.body.data.event.description, 'Integration test event');
   assert.equal(publicPhotosResponse.body.data.photos.length, 1);
   assert.equal(publicPhotosResponse.body.data.photos[0]._id, photoId);
 });

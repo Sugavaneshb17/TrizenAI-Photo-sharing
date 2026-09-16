@@ -6,6 +6,7 @@ export default function PublicGalleryPage() {
   const { publicToken } = useParams();
   const [pin, setPin] = useState('');
   const [galleryAccess, setGalleryAccess] = useState('');
+  const [event, setEvent] = useState(null);
   const [photos, setPhotos] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -15,6 +16,7 @@ export default function PublicGalleryPage() {
       const response = await api.get(`/public/gallery/${publicToken}/photos`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      setEvent(response.data.data.event || null);
       setPhotos(response.data.data.photos || []);
     } catch (err) {
       setError(err.message || 'Unable to load gallery');
@@ -51,23 +53,32 @@ export default function PublicGalleryPage() {
           <button type="submit" disabled={loading}>{loading ? 'Verifying...' : 'Access gallery'}</button>
         </form>
       ) : (
-        <div className="card list-card">
-          <h2>Published gallery</h2>
-          {photos.length === 0 ? (
-            <p className="empty-state">No photos selected for this gallery.</p>
-          ) : (
-            <div className="photo-grid">
-              {photos.map((photo) => (
-                <div className="photo-card" key={photo._id}>
-                  <img src={photo.storageUrl} alt={photo.originalName} />
-                  <div className="photo-meta">
-                    <strong>{photo.originalName}</strong>
-                  </div>
-                </div>
-              ))}
+        <>
+          {event ? (
+            <div className="card info-card">
+              <h1>{event.name}</h1>
+              <p><strong>Date:</strong> {new Date(event.date).toLocaleDateString()}</p>
+              <p><strong>Description:</strong> {event.description || 'No description'}</p>
             </div>
-          )}
-        </div>
+          ) : null}
+          <div className="card list-card">
+            <h2>Published gallery</h2>
+            {photos.length === 0 ? (
+              <p className="empty-state">No photos selected for this gallery.</p>
+            ) : (
+              <div className="photo-grid">
+                {photos.map((photo) => (
+                  <div className="photo-card" key={photo._id}>
+                    <img src={photo.storageUrl} alt={photo.originalName} />
+                    <div className="photo-meta">
+                      <strong>{photo.originalName}</strong>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
