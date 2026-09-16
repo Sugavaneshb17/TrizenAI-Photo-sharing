@@ -8,10 +8,13 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
+  const isPublicGalleryRequest = config?.url?.includes('/public/gallery/');
   const token = localStorage.getItem('token');
-  if (token) {
+
+  if (token && !isPublicGalleryRequest) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
   return config;
 });
 
@@ -21,7 +24,9 @@ api.interceptors.response.use(
     const message =
       error?.response?.data?.message || 'Something went wrong. Please try again.';
 
-    if (error?.response?.status === 401) {
+    const isPublicGalleryRequest = error?.config?.url?.includes('/public/gallery/');
+
+    if (error?.response?.status === 401 && !isPublicGalleryRequest) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';

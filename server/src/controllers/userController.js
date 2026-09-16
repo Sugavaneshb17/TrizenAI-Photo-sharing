@@ -11,15 +11,28 @@ const createTeamMember = async (req, res) => {
       return sendError(res, 'Name, email and password are required', 400);
     }
 
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    const normalizedEmail = email.toLowerCase();
+    const existingUser = await User.findOne({ email: normalizedEmail });
+
     if (existingUser) {
-      return sendError(res, 'User already exists', 409);
+      if (existingUser.role !== USER_ROLES.TEAM_MEMBER) {
+        return sendError(res, 'User already exists', 409);
+      }
+
+      return sendSuccess(res, {
+        user: {
+          id: existingUser._id,
+          name: existingUser.name,
+          email: existingUser.email,
+          role: existingUser.role,
+        },
+      }, 200);
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await User.create({
       name,
-      email: email.toLowerCase(),
+      email: normalizedEmail,
       passwordHash,
       role: USER_ROLES.TEAM_MEMBER,
     });

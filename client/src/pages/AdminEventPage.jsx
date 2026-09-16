@@ -8,6 +8,8 @@ export default function AdminEventPage() {
   const [photos, setPhotos] = useState([]);
   const [memberEmail, setMemberEmail] = useState('');
   const [pin, setPin] = useState('');
+  const [galleryUrl, setGalleryUrl] = useState('');
+  const [galleryStatus, setGalleryStatus] = useState({ published: false });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -17,6 +19,8 @@ export default function AdminEventPage() {
       setEvent(eventResponse.data.data.event);
       const photoResponse = await api.get(`/events/${eventId}/photos`);
       setPhotos(photoResponse.data.data.photos || []);
+      const statusResponse = await api.get(`/events/${eventId}/gallery`);
+      setGalleryStatus(statusResponse.data.data || { published: false });
     } catch (err) {
       setError(err.message || 'Unable to load event');
     } finally {
@@ -31,11 +35,18 @@ export default function AdminEventPage() {
   const handleAddMember = async (event) => {
     event.preventDefault();
     try {
-      await api.post('/users/team-members', {
-        name: memberEmail.split('@')[0],
-        email: memberEmail,
-        password: 'Temporary123!',
-      });
+      try {
+        await api.post('/users/team-members', {
+          name: memberEmail.split('@')[0],
+          email: memberEmail,
+          password: 'Temporary123!',
+        });
+      } catch (err) {
+        if (err?.message !== 'User already exists') {
+          throw err;
+        }
+      }
+
       await api.post(`/events/${eventId}/members`, { email: memberEmail });
       setMemberEmail('');
       loadData();
@@ -55,9 +66,11 @@ export default function AdminEventPage() {
 
   const handlePublish = async () => {
     try {
-      await api.post(`/events/${eventId}/gallery/publish`, { pin });
+      const response = await api.post(`/events/${eventId}/gallery/publish`, { pin });
+      const publishedUrl = response.data.data.galleryUrl;
+      setGalleryUrl(publishedUrl);
       setPin('');
-      alert('Gallery published');
+      alert(`Gallery published. Open: ${publishedUrl}`);
     } catch (err) {
       setError(err.message || 'Unable to publish gallery');
     }
@@ -78,6 +91,11 @@ export default function AdminEventPage() {
         <p><strong>Team members:</strong> {event.teamMembers?.map((member) => member.name).join(', ') || 'None assigned'}</p>
       </div>
 
+      <div className="card info-card">
+        <h2>Gallery status</h2>
+        <p><strong>Published:</strong> {galleryStatus.published ? 'Yes' : 'No'}</p>
+      </div>
+
       <form className="card form-card" onSubmit={handleAddMember}>
         <h2>Add team member</h2>
         <div className="row-inline">
@@ -92,9 +110,20 @@ export default function AdminEventPage() {
           <input type="password" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="PIN (min 4 digits)" />
           <button type="button" onClick={handlePublish}>Publish</button>
         </div>
+        {galleryUrl ? (
+          <div style={{ marginTop: '12px' }}>
+            <strong>Public gallery URL:</strong>
+            <div style={{ wordBreak: 'break-all', marginTop: '6px' }}>{galleryUrl}</div>
+          </div>
+        ) : null}
       </div>
 
       {error ? <p className="error-message">{error}</p> : null}
+
+      <div className="card info-card">
+        <p><strong>Total uploaded photos:</strong> {photos.length}</p>
+        <p><strong>Selected for publishing:</strong> {photos.filter((photo) => photo.isSelected).length}</p>
+      </div>
 
       <div className="card list-card">
         <h2>Uploaded photos</h2>

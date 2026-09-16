@@ -58,26 +58,30 @@ const uploadPhotosToEvent = async (req, res) => {
     const uploadedPhotos = [];
 
     for (const file of files) {
-      let result;
+      let result = null;
 
       if (isCloudinaryConfigured()) {
-        result = await new Promise((resolve, reject) => {
-          const stream = cloudinary.uploader.upload_stream(
-            {
-              folder: 'trizenai-events',
-              resource_type: 'image',
-            },
-            (error, uploaded) => {
-              if (error) {
-                reject(error);
-              } else {
-                resolve(uploaded);
-              }
-            },
-          );
+        try {
+          result = await new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+              {
+                folder: 'trizenai-events',
+                resource_type: 'image',
+              },
+              (error, uploaded) => {
+                if (error) {
+                  reject(error);
+                } else {
+                  resolve(uploaded);
+                }
+              },
+            );
 
-          stream.end(file.buffer);
-        });
+            stream.end(file.buffer);
+          });
+        } catch (error) {
+          console.warn('Cloudinary upload failed, using fallback image:', error.message);
+        }
       }
 
       const photo = await Photo.create({
@@ -201,8 +205,11 @@ const publishGallery = async (req, res) => {
       { upsert: true, new: true },
     );
 
+    const frontendBaseUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+
     return sendSuccess(res, {
-      galleryUrl: `/gallery/${gallery.publicToken}`,
+      galleryUrl: `${frontendBaseUrl}/gallery/${gallery.publicToken}`,
+      publicToken: gallery.publicToken,
       selectedCount: selectedPhotos.length,
     });
   } catch (error) {

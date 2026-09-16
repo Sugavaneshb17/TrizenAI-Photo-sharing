@@ -9,6 +9,9 @@ export default function AdminDashboardPage() {
   const [name, setName] = useState('');
   const [date, setDate] = useState('');
   const [description, setDescription] = useState('');
+  const [teamName, setTeamName] = useState('');
+  const [teamEmail, setTeamEmail] = useState('');
+  const [teamPassword, setTeamPassword] = useState('');
 
   const loadEvents = async () => {
     try {
@@ -38,6 +41,24 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const handleCreateTeamMember = async (event) => {
+    event.preventDefault();
+    try {
+      await api.post('/users/team-members', {
+        name: teamName,
+        email: teamEmail,
+        password: teamPassword,
+      });
+      setTeamName('');
+      setTeamEmail('');
+      setTeamPassword('');
+      setError('');
+      loadEvents();
+    } catch (err) {
+      setError(err.message || 'Unable to create team member');
+    }
+  };
+
   if (loading) return <div className="page-state">Loading events...</div>;
 
   return (
@@ -45,6 +66,25 @@ export default function AdminDashboardPage() {
       <div className="page-header">
         <h1>Admin dashboard</h1>
       </div>
+
+      <form className="card form-card" onSubmit={handleCreateTeamMember}>
+        <h2>Create team member</h2>
+        <div className="two-columns">
+          <label>
+            Team member name
+            <input value={teamName} onChange={(e) => setTeamName(e.target.value)} required />
+          </label>
+          <label>
+            Team member email
+            <input type="email" value={teamEmail} onChange={(e) => setTeamEmail(e.target.value)} required />
+          </label>
+        </div>
+        <label>
+          Password
+          <input type="password" value={teamPassword} onChange={(e) => setTeamPassword(e.target.value)} required />
+        </label>
+        <button type="submit">Create team member</button>
+      </form>
 
       <form className="card form-card" onSubmit={handleCreate}>
         <h2>Create event</h2>

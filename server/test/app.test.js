@@ -15,6 +15,13 @@ let eventId;
 let photoId;
 let galleryToken;
 
+const validPngBuffer = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAF' +
+  'c1fQAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJ0UkG' +
+  'AAAAAAgIYQ7v/dQAAAABJRU5ErkJggg==',
+  'base64',
+);
+
 const jsonRequest = (method, path, token, body) => {
   const requestBuilder = request(app)[method](path);
   if (token) requestBuilder.set('Authorization', `Bearer ${token}`);
@@ -66,6 +73,25 @@ after(async () => {
   await mongoServer.stop();
 });
 
+test('allows reusing an existing team member email without creating a duplicate user', async () => {
+  const response = await jsonRequest('post', '/api/users/team-members', adminToken, {
+    name: 'Duplicate Team Member',
+    email: 'duplicate-team@example.com',
+    password: 'Password123!',
+  });
+
+  assert.equal(response.status, 201);
+
+  const secondResponse = await jsonRequest('post', '/api/users/team-members', adminToken, {
+    name: 'Duplicate Team Member',
+    email: 'duplicate-team@example.com',
+    password: 'Password123!',
+  });
+
+  assert.equal(secondResponse.status, 200);
+  assert.equal(secondResponse.body.data.user.email, 'duplicate-team@example.com');
+});
+
 test('enforces event access and supports the complete gallery workflow', async () => {
   const eventResponse = await jsonRequest('get', `/api/events/${eventId}`, teamToken);
   assert.equal(eventResponse.status, 200);
@@ -81,7 +107,7 @@ test('enforces event access and supports the complete gallery workflow', async (
   const uploadResponse = await request(app)
     .post(`/api/events/${eventId}/photos`)
     .set('Authorization', `Bearer ${teamToken}`)
-    .attach('photos', Buffer.from('test-image'), 'test.png');
+    .attach('photos', validPngBuffer, { filename: 'test.png', contentType: 'image/png' });
   assert.equal(uploadResponse.status, 201);
   assert.equal(uploadResponse.body.data.photos.length, 1);
   photoId = uploadResponse.body.data.photos[0]._id;
