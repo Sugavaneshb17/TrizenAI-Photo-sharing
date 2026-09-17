@@ -102,6 +102,32 @@ const addTeamMemberToEvent = async (req, res) => {
   }
 };
 
+const removeTeamMemberFromEvent = async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.eventId);
+    if (!event) {
+      return sendError(res, 'Event not found', 404);
+    }
+
+    if (event.createdBy.toString() !== req.user._id.toString()) {
+      return sendError(res, 'Forbidden', 403);
+    }
+
+    const memberId = req.params.memberId;
+    const originalLength = event.teamMembers.length;
+    event.teamMembers = event.teamMembers.filter((id) => id.toString() !== memberId.toString());
+
+    if (event.teamMembers.length === originalLength) {
+      return sendError(res, 'Team member is not assigned to this event', 404);
+    }
+
+    await event.save();
+    return sendSuccess(res, { event }, 200);
+  } catch (error) {
+    return sendError(res, 'Unable to remove team member', 500);
+  }
+};
+
 const updateEvent = async (req, res) => {
   try {
     const { name, description, date } = req.body;
@@ -155,6 +181,7 @@ module.exports = {
   getEvents,
   getEventById,
   addTeamMemberToEvent,
+  removeTeamMemberFromEvent,
   updateEvent,
   deleteEvent,
 };

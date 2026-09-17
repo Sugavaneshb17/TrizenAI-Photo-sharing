@@ -64,6 +64,17 @@ export default function AdminEventPage() {
     }
   };
 
+  const handleRemoveMember = async (memberId) => {
+    if (!window.confirm('Remove this team member from the event?')) return;
+
+    try {
+      await api.delete(`/events/${eventId}/members/${memberId}`);
+      loadData();
+    } catch (err) {
+      setError(err.message || 'Unable to remove team member');
+    }
+  };
+
   const handleSelectToggle = async (photoId) => {
     try {
       await api.patch(`/photos/${photoId}/select`);
@@ -115,6 +126,18 @@ export default function AdminEventPage() {
         </div>
         <p><strong>Description:</strong> {event.description || 'No description'}</p>
         <p><strong>Team members:</strong> {event.teamMembers?.map((member) => member.name).join(', ') || 'None assigned'}</p>
+        {event.teamMembers?.length ? (
+          <div className="member-list">
+            {event.teamMembers.map((member) => (
+              <div key={member._id} className="member-row">
+                <span>{member.name}</span>
+                <button type="button" className="danger-button" onClick={() => handleRemoveMember(member._id)}>
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       {isEditing ? (

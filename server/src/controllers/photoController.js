@@ -151,6 +151,24 @@ const getMyUploads = async (req, res) => {
   }
 };
 
+const deletePhoto = async (req, res) => {
+  try {
+    const photo = await Photo.findById(req.params.photoId);
+    if (!photo) {
+      return sendError(res, 'Photo not found', 404);
+    }
+
+    if (photo.uploadedBy.toString() !== req.user._id.toString()) {
+      return sendError(res, 'Forbidden', 403);
+    }
+
+    await photo.deleteOne();
+    return sendSuccess(res, { deletedPhoto: photo }, 200);
+  } catch (error) {
+    return sendError(res, 'Unable to delete photo', 500);
+  }
+};
+
 const togglePhotoSelection = async (req, res) => {
   try {
     const photo = await Photo.findById(req.params.photoId).populate('eventId');
@@ -304,6 +322,7 @@ module.exports = {
   uploadPhotosToEvent,
   getEventPhotos,
   getMyUploads,
+  deletePhoto,
   togglePhotoSelection,
   publishGallery,
   getGalleryStatus,

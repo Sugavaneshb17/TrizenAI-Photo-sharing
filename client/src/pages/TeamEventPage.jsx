@@ -45,6 +45,17 @@ export default function TeamEventPage() {
     }
   };
 
+  const handleDeletePhoto = async (photoId) => {
+    if (!window.confirm('Delete this uploaded photo?')) return;
+
+    try {
+      await api.delete(`/photos/${photoId}`);
+      loadData();
+    } catch (err) {
+      setError(err.message || 'Unable to delete photo');
+    }
+  };
+
   if (loading) return <div className="page-state">Loading team event...</div>;
   if (!event) return <div className="page-state">Event not found.</div>;
 
@@ -75,6 +86,9 @@ export default function TeamEventPage() {
                   <span>{new Date(photo.createdAt).toLocaleDateString()}</span>
                   <span>{photo.isSelected ? 'Selected' : 'Pending review'}</span>
                 </div>
+                <button type="button" className="danger-button" onClick={() => handleDeletePhoto(photo._id)}>
+                  Remove photo
+                </button>
               </div>
             ))}
           </div>

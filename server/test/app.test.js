@@ -129,6 +129,80 @@ test('allows an admin to delete an event', async () => {
   assert.equal(fetchResponse.status, 404);
 });
 
+test('allows an admin to remove a team member from an event', async () => {
+  const teamMemberResponse = await jsonRequest('post', '/api/users/team-members', adminToken, {
+    name: 'Removable Team Member',
+    email: 'remove-member@example.com',
+    password: 'Password123!',
+  });
+
+  assert.equal(teamMemberResponse.status, 201);
+
+  const freshEventResponse = await jsonRequest('post', '/api/events', adminToken, {
+    name: 'Event With Removable Member',
+    description: 'Test member removal',
+    date: '2028-04-12',
+  });
+
+  assert.equal(freshEventResponse.status, 201);
+
+  const addResponse = await jsonRequest('post', `/api/events/${freshEventResponse.body.data.event._id}/members`, adminToken, {
+    email: 'remove-member@example.com',
+  });
+  assert.equal(addResponse.status, 200);
+
+  const removeResponse = await jsonRequest('delete', `/api/events/${freshEventResponse.body.data.event._id}/members/${teamMemberResponse.body.data.user._id}`, adminToken);
+  assert.equal(removeResponse.status, 200);
+  assert.equal(removeResponse.body.data.event.teamMembers.some((member) => member.toString() === teamMemberResponse.body.data.user._id), false);
+});
+
+test('allows a team member to remove one of their uploaded photos', async () => {
+  const eventResponse = await jsonRequest('post', '/api/events', adminToken, {
+    name: 'Event For Photo Deletion',
+    description: 'Photo delete test',
+    date: '2028-05-20',
+  });
+
+  assert.equal(eventResponse.status, 201);
+  const newEventId = eventResponse.body.data.event._id;
+
+  const teamMemberResponse = await jsonRequest('post', '/api/users/team-members', adminToken, {
+    name: 'Photo Deleter',
+    email: 'photo-delete@example.com',
+    password: 'Password123!',
+  });
+
+  assert.equal(teamMemberResponse.status, 201);
+
+  const assignmentResponse = await jsonRequest('post', `/api/events/${newEventId}/members`, adminToken, {
+    email: 'photo-delete@example.com',
+  });
+  assert.equal(assignmentResponse.status, 200);
+
+  const loginResponse = await jsonRequest('post', '/api/auth/login', null, {
+    email: 'photo-delete@example.com',
+    password: 'Password123!',
+  });
+  assert.equal(loginResponse.status, 200);
+  const memberToken = loginResponse.body.data.token;
+
+  const uploadResponse = await request(app)
+    .post(`/api/events/${newEventId}/photos`)
+    .set('Authorization', `Bearer ${memberToken}`)
+    .attach('photos', validPngBuffer, { filename: 'delete-me.png', contentType: 'image/png' });
+
+  assert.equal(uploadResponse.status, 201);
+  const photoId = uploadResponse.body.data.photos[0]._id;
+
+  const deleteResponse = await jsonRequest('delete', `/api/photos/${photoId}`, memberToken);
+  assert.equal(deleteResponse.status, 200);
+  assert.equal(deleteResponse.body.data.deletedPhoto._id, photoId);
+
+  const fetchResponse = await jsonRequest('get', `/api/events/${newEventId}/photos`, memberToken);
+  assert.equal(fetchResponse.status, 200);
+  assert.equal(fetchResponse.body.data.photos.some((photo) => photo._id === photoId), false);
+});
+
 test('enforces event access and supports the complete gallery workflow', async () => {
   const eventResponse = await jsonRequest('get', `/api/events/${eventId}`, teamToken);
   assert.equal(eventResponse.status, 200);

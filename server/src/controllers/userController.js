@@ -21,6 +21,7 @@ const createTeamMember = async (req, res) => {
 
       return sendSuccess(res, {
         user: {
+          _id: existingUser._id,
           id: existingUser._id,
           name: existingUser.name,
           email: existingUser.email,
@@ -39,6 +40,7 @@ const createTeamMember = async (req, res) => {
 
     return sendSuccess(res, {
       user: {
+        _id: user._id,
         id: user._id,
         name: user.name,
         email: user.email,
