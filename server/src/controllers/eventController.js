@@ -102,9 +102,59 @@ const addTeamMemberToEvent = async (req, res) => {
   }
 };
 
+const updateEvent = async (req, res) => {
+  try {
+    const { name, description, date } = req.body;
+    const event = await Event.findById(req.params.eventId);
+
+    if (!event) {
+      return sendError(res, 'Event not found', 404);
+    }
+
+    if (event.createdBy.toString() !== req.user._id.toString()) {
+      return sendError(res, 'Forbidden', 403);
+    }
+
+    if (!name && !date && !description) {
+      return sendError(res, 'At least one field is required to update', 400);
+    }
+
+    if (name) event.name = name.trim();
+    if (description !== undefined) event.description = description || '';
+    if (date) event.date = new Date(date);
+
+    await event.save();
+
+    return sendSuccess(res, { event }, 200);
+  } catch (error) {
+    return sendError(res, 'Unable to update event', 500);
+  }
+};
+
+const deleteEvent = async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.eventId);
+
+    if (!event) {
+      return sendError(res, 'Event not found', 404);
+    }
+
+    if (event.createdBy.toString() !== req.user._id.toString()) {
+      return sendError(res, 'Forbidden', 403);
+    }
+
+    await event.deleteOne();
+    return sendSuccess(res, { deletedEvent: event }, 200);
+  } catch (error) {
+    return sendError(res, 'Unable to delete event', 500);
+  }
+};
+
 module.exports = {
   createEvent,
   getEvents,
   getEventById,
   addTeamMemberToEvent,
+  updateEvent,
+  deleteEvent,
 };

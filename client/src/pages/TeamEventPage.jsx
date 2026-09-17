@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import BackButton from '../components/BackButton';
 import api from '../services/api';
 
 export default function TeamEventPage() {
@@ -79,6 +80,8 @@ export default function TeamEventPage() {
           </div>
         )}
       </div>
+
+      <BackButton to="/team/dashboard" />
     </div>
   );
 }

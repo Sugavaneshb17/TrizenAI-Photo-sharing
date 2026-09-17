@@ -92,6 +92,43 @@ test('allows reusing an existing team member email without creating a duplicate 
   assert.equal(secondResponse.body.data.user.email, 'duplicate-team@example.com');
 });
 
+test('allows an admin to update event details', async () => {
+  const createResponse = await jsonRequest('post', '/api/events', adminToken, {
+    name: 'Editable Event',
+    description: 'Old description',
+    date: '2028-02-14',
+  });
+
+  assert.equal(createResponse.status, 201);
+  const updateResponse = await jsonRequest('patch', `/api/events/${createResponse.body.data.event._id}`, adminToken, {
+    name: 'Updated Event Name',
+    description: 'Updated description',
+    date: '2028-02-15',
+  });
+
+  assert.equal(updateResponse.status, 200);
+  assert.equal(updateResponse.body.data.event.name, 'Updated Event Name');
+  assert.equal(updateResponse.body.data.event.description, 'Updated description');
+  assert.equal(new Date(updateResponse.body.data.event.date).toISOString().slice(0, 10), '2028-02-15');
+});
+
+test('allows an admin to delete an event', async () => {
+  const createResponse = await jsonRequest('post', '/api/events', adminToken, {
+    name: 'Delete Me Event',
+    description: 'Will be removed',
+    date: '2028-03-10',
+  });
+
+  assert.equal(createResponse.status, 201);
+
+  const deleteResponse = await jsonRequest('delete', `/api/events/${createResponse.body.data.event._id}`, adminToken);
+  assert.equal(deleteResponse.status, 200);
+  assert.equal(deleteResponse.body.data.deletedEvent.name, 'Delete Me Event');
+
+  const fetchResponse = await jsonRequest('get', `/api/events/${createResponse.body.data.event._id}`, adminToken);
+  assert.equal(fetchResponse.status, 404);
+});
+
 test('enforces event access and supports the complete gallery workflow', async () => {
   const eventResponse = await jsonRequest('get', `/api/events/${eventId}`, teamToken);
   assert.equal(eventResponse.status, 200);

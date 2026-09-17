@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import BackButton from '../components/BackButton';
 import api from '../services/api';
 
 export default function AdminDashboardPage() {
@@ -12,6 +13,7 @@ export default function AdminDashboardPage() {
   const [teamName, setTeamName] = useState('');
   const [teamEmail, setTeamEmail] = useState('');
   const [teamPassword, setTeamPassword] = useState('');
+  const navigate = useNavigate();
 
   const loadEvents = async () => {
     try {
@@ -56,6 +58,18 @@ export default function AdminDashboardPage() {
       loadEvents();
     } catch (err) {
       setError(err.message || 'Unable to create team member');
+    }
+  };
+
+  const handleDelete = async (eventId) => {
+    if (!window.confirm('Delete this event? This action cannot be undone.')) return;
+
+    try {
+      await api.delete(`/events/${eventId}`);
+      setEvents((current) => current.filter((event) => event._id !== eventId));
+      setError('');
+    } catch (err) {
+      setError(err.message || 'Unable to delete event');
     }
   };
 
@@ -114,16 +128,28 @@ export default function AdminDashboardPage() {
         ) : (
           <div className="event-grid">
             {events.map((event) => (
-              <Link to={`/admin/events/${event._id}`} key={event._id} className="event-card">
-                <h3>{event.name}</h3>
-                <p>{new Date(event.date).toLocaleDateString()}</p>
-                <p>{event.description || 'No description provided.'}</p>
-                <small>{event.teamMembers?.length || 0} members</small>
-              </Link>
+              <div className="event-card" key={event._id}>
+                <Link to={`/admin/events/${event._id}`} className="event-link">
+                  <h3>{event.name}</h3>
+                  <p>{new Date(event.date).toLocaleDateString()}</p>
+                  <p>{event.description || 'No description provided.'}</p>
+                  <small>{event.teamMembers?.length || 0} members</small>
+                </Link>
+                <div className="event-actions">
+                  <button type="button" className="secondary-button" onClick={() => navigate(`/admin/events/${event._id}`)}>
+                    Edit
+                  </button>
+                  <button type="button" className="danger-button" onClick={() => handleDelete(event._id)}>
+                    Delete
+                  </button>
+                </div>
+              </div>
             ))}
           </div>
         )}
       </div>
+
+      <BackButton to="/login" />
     </div>
   );
 }

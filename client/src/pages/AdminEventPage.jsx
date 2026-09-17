@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import BackButton from '../components/BackButton';
 import api from '../services/api';
 
 export default function AdminEventPage() {
@@ -12,11 +13,19 @@ export default function AdminEventPage() {
   const [galleryStatus, setGalleryStatus] = useState({ published: false });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '', description: '', date: '' });
 
   const loadData = async () => {
     try {
       const eventResponse = await api.get(`/events/${eventId}`);
-      setEvent(eventResponse.data.data.event);
+      const nextEvent = eventResponse.data.data.event;
+      setEvent(nextEvent);
+      setEditForm({
+        name: nextEvent.name || '',
+        description: nextEvent.description || '',
+        date: nextEvent.date ? new Date(nextEvent.date).toISOString().slice(0, 10) : '',
+      });
       const photoResponse = await api.get(`/events/${eventId}/photos`);
       setPhotos(photoResponse.data.data.photos || []);
       const statusResponse = await api.get(`/events/${eventId}/gallery`);
@@ -76,6 +85,18 @@ export default function AdminEventPage() {
     }
   };
 
+  const handleEditSubmit = async (event) => {
+    event.preventDefault();
+    try {
+      const response = await api.patch(`/events/${eventId}`, editForm);
+      setEvent(response.data.data.event);
+      setIsEditing(false);
+      setError('');
+    } catch (err) {
+      setError(err.message || 'Unable to update event');
+    }
+  };
+
   if (loading) return <div className="page-state">Loading event...</div>;
   if (!event) return <div className="page-state">Event not found.</div>;
 
@@ -86,10 +107,39 @@ export default function AdminEventPage() {
       </div>
 
       <div className="card info-card">
-        <p><strong>Date:</strong> {new Date(event.date).toLocaleDateString()}</p>
+        <div className="inline-actions">
+          <p><strong>Date:</strong> {new Date(event.date).toLocaleDateString()}</p>
+          <button type="button" className="secondary-button" onClick={() => setIsEditing((value) => !value)}>
+            {isEditing ? 'Cancel edit' : 'Edit event'}
+          </button>
+        </div>
         <p><strong>Description:</strong> {event.description || 'No description'}</p>
         <p><strong>Team members:</strong> {event.teamMembers?.map((member) => member.name).join(', ') || 'None assigned'}</p>
       </div>
+
+      {isEditing ? (
+        <form className="card form-card" onSubmit={handleEditSubmit}>
+          <h2>Edit event</h2>
+          <label>
+            Event name
+            <input value={editForm.name} onChange={(e) => setEditForm((current) => ({ ...current, name: e.target.value }))} required />
+          </label>
+          <label>
+            Event date
+            <input type="date" value={editForm.date} onChange={(e) => setEditForm((current) => ({ ...current, date: e.target.value }))} required />
+          </label>
+          <label>
+            Description
+            <textarea rows="3" value={editForm.description} onChange={(e) => setEditForm((current) => ({ ...current, description: e.target.value }))} />
+          </label>
+          <div className="row-inline">
+            <button type="submit">Save changes</button>
+            <button type="button" className="secondary-button" onClick={() => setIsEditing(false)}>
+              Close
+            </button>
+          </div>
+        </form>
+      ) : null}
 
       <div className="card info-card">
         <h2>Gallery status</h2>
@@ -147,6 +197,8 @@ export default function AdminEventPage() {
           </div>
         )}
       </div>
+
+      <BackButton to="/admin/dashboard" />
     </div>
   );
 }
